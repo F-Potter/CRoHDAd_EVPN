@@ -1,6 +1,10 @@
 FROM ubuntu:xenial
 MAINTAINER dev-support <dev-support@cumulusnetworks.com>
 
+LABEL com.cumulusnetworks.version="1.0"
+LABEL vendor="Cumulus Networks"
+LABEL description="Initial Release"
+
 RUN apt-get update && apt-get -y install \
     iptables \
     iproute2 \
