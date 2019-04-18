@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 
+import argparse
+import docker
+import ipaddress
+import logging
+import logging.handlers
+import os.path
+import pprint
 import re
 import time
-import docker
-import pprint
-import os.path
-import logging
-import argparse
-import ipaddress
-import logging.handlers
+import threading
+import yaml
+from kubernetes import client, config
+from openshift.dynamic import DynamicClient
 from pyroute2 import IPRoute
 
 # Prereqs
-#apt-get update -y && apt-get install python-pip iproute2
-#pip install docker pyroute2
+#apt-get update -y && apt-get install python3-pip iproute2
+#pip3 install docker pyroute2
+#pip3 install openshift
 
-version="1.1"
+version="2.0"
 
 parser = argparse.ArgumentParser(description='Cumulus Routing on the Host Docker Advertisement Daemon (cRoHDAD) -- A Daemon to advertise Docker container IP addresses into Routing Fabrics running with Quagga/FRR.')
 parser.add_argument('-d','--debug', action='store_true',
@@ -88,12 +93,14 @@ low_level_client=docker.APIClient(base_url='unix://var/run/docker.sock', version
 # Pyroute2 Setup
 ip = IPRoute()
 
+threads = []
 # Data Structure to Store Container Info
 container_IPs={} # Indexed by container_id
 # container_ID:
 #   network_ID:
 #     bridge_ifindex:
 #     ip_address:
+k8s_resource_IPs={}
 
 
 def print_and_log(somestring):
@@ -180,8 +187,18 @@ def scrape_network_info(docker_container,container_id,network):
 
     return ifindex,ip_address,network_id
 
+def get_ifindex_by_ip(ip_address):
+    routes = ip.get_routes()
+    for route in routes:
+#        pprint.pprint(route)
+        if route.get_attr('RTA_DST') is not None:
+#            print("Checking if %s is in %s/%s" % (ip_address, route.get_attr('RTA_DST'), route['dst_len']))
+            if ipaddress.ip_address(ip_address) in ipaddress.ip_network("%s/%s" % (route.get_attr('RTA_DST'), route['dst_len']) ):
+                return route.get_attr('RTA_OIF')
+    
+    return -1
 
-def add_host_route(container_id):
+def add_host_route_by_container(container_id):
     if debug: print_and_log("DEBUG: Querying Container ID: %s"%(container_id[:12]))
     time.sleep(0.2) # Waiting for Container to be Created
     try:
@@ -222,7 +239,54 @@ def add_host_route(container_id):
                      proto="boot",
                      table=table_number,
                      scope="link",
-                     oif=ifindex)            
+                     oif=ifindex)
+                     
+def add_host_route_by_k8s_resource(r):
+    ip_is_good=False
+    ip_address = r['spec']['clusterIP']
+    r_kind = r['kind']
+    r_name = r['metadata']['name']
+    r_uid = r['metadata']['uid']
+
+    if len(subnets_to_advertise) == 0:
+        subnets_to_advertise.append(u'0.0.0.0/0')
+    for subnet in subnets_to_advertise:
+        if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
+            ip_is_good=True
+            if debug:
+                print_and_log("DEBUG: IP ADDRESS (%s) found in subnet (%s)"
+                                %(ip_address,subnet))
+
+    if not ip_is_good:
+        if debug:
+            print_and_log("DEBUG: %s %s clusterIP %s is not in the list of acceptable subnets for advertisement."
+                % (r_kind, r_name, ip_address))
+        return False
+    
+    if r_uid not in k8s_resource_IPs:
+        k8s_resource_IPs[r_uid] = []
+    if ip_address in k8s_resource_IPs[r_uid]:
+        print_and_log("    NOTICE: Already added route %s/32 for K8s ResourceInstance %s %s. Ignoring."
+                % (ip_address, r_kind, r_name))
+        return True
+    else:
+        k8s_resource_IPs[r_uid].append(ip_address)
+        
+        ifindex = get_ifindex_by_ip(ip_address)
+        if ifindex == -1:
+            print_and_log("    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Things probably won't work."
+                        % (ip_address, r_kind, r_name))
+            return False
+        
+        print_and_log("    ADDING Host Route: %s/32 (from K8s ResourceInstance %s %s)"
+                    % (ip_address, r_kind, r_name))
+        ip.route("add",
+                 dst="%s/32" % (ip_address),
+                 proto="boot",
+                 table=table_number,
+                 scope="link",
+                 oif=ifindex)
+
 
 def add_route_table(table_number):
     try:
@@ -246,6 +310,95 @@ def add_route_table(table_number):
     print_and_log("    Flushing any pre-existing routes from table %s."%(table_number))
     ip.flush_routes(table=table_number)
 
+def is_valid_ip(str):
+    try:
+        ipaddress.ip_address(str)
+        return True
+    except ValueError:
+        pass
+    except KeyError:
+        pass
+    
+    return False
+
+
+class DockerWatcherThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self):
+        global debug
+        if debug:
+            print_and_log("*** %s thread started"
+                  % (threading.currentThread().ident))
+
+        print_and_log("  Listening for Container Activity...")
+        if debug:
+            print("DEBUG: Printing all Docker events for debugging, it may get chatty...")
+
+        try:
+            events=client.events(decode=True)
+        except:
+            print_and_log("ERROR: Cannot Retreive Docker Events Stream. Is Docker installed and started?")
+            exit(1)
+
+        for event in events:
+            if debug:
+                pp.pprint(event)
+
+            if u'status' in event:
+                # Only look for specific event types
+                # This approach will not catch runtime additions/removals of networks from existing containers.
+                if event["status"] == "die" or event["status"] == "start":
+                    if u'Type' in event:
+                        if event[u'Type'] != u'container': continue
+                    else: continue
+                    if event["status"] == "die":
+                        print_and_log("STOPPED -- Container id: %s" % (event["id"]))
+                        # Handle /32 Host Route Removal for Stopped Container (IF KNOWN)
+                        #  This will become a threaded handling function... later.
+                        remove_host_route(event["id"])
+                    elif event["status"] == "start":
+                        print_and_log("STARTED -- Container id: %s" % (event["id"]))
+                        # Handle /32 Host Route Addition for a Newly Started Container
+                        #  This will become a threaded handling function... later.
+                        add_host_route_by_container(event["id"])
+
+        if debug:
+            print_and_log("*** EXITING %s thread"
+                  % (threading.currentThread().ident))
+
+class K8sWatcherThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self):
+        global debug
+        
+        k8s_client = config.new_client_from_config()
+        dyn_client = DynamicClient(k8s_client)
+        v1_services = dyn_client.resources.get(api_version='v1', kind='Service')
+        
+        if debug:
+            print_and_log("*** %s thread started"
+                  % (threading.currentThread().ident))
+
+        for event in v1_services.watch():
+#            print(event['object'])
+            
+            service_name = event['object']['metadata']['name']
+            print_and_log("Received %s event for %s %s"
+                % (event['type'], event['object']['kind'], service_name))
+            if is_valid_ip(event['object']['spec']['clusterIP']):
+                cluster_ip = event['object']['spec']['clusterIP']
+                print_and_log("Cluster IP is %s" % (cluster_ip))
+
+                add_host_route_by_k8s_resource(event['object'])
+
+        if debug:
+            print_and_log("*** EXITING %s thread"
+                  % (threading.currentThread().ident))
+
 
 def main():
     header = """
@@ -261,7 +414,7 @@ def main():
     print_and_log(" STARTING UP.")
 
     add_route_table(table_number)
-
+    
     if auto_add_on_startup:
         print_and_log("\n\n  Auto-Detecting existing containers and adding host routes...")
         try:
@@ -270,36 +423,17 @@ def main():
             print_and_log("ERROR: Cannot Communicate with Docker-Engine API. Is Docker installed and started?")
             exit(1)
         for container in container_list:
-            add_host_route(container.id)
+            add_host_route_by_container(container.id)
 
-    print_and_log("  Listening for Container Activity...")
-    if debug: print("DEBUG: Printing all Docker events for debugging, it may get chatty...")
-    try:
-        events=client.events(decode=True)
-    except:
-        print_and_log("ERROR: Cannot Retreive Docker Events Stream. Is Docker installed and started?")
-        exit(1)
+    t = DockerWatcherThread()
+    threads.append(t)
+    t = K8sWatcherThread()
+    threads.append(t)
+    
+    for t in threads:
+        t.start()
 
-    for event in events:
-        if debug:
-            pp.pprint(event)
-        if u'status' in event:
-            # Only look for specific event types
-            # This approach will not catch runtime additions/removals of networks from existing containers.
-            if event["status"] == "die" or event["status"] == "start":
-                if u'Type' in event:
-                    if event[u'Type'] != u'container': continue
-                else: continue
-                if event["status"] == "die":
-                    print_and_log("STOPPED -- Container id: %s" % (event["id"]))
-                    # Handle /32 Host Route Removal for Stopped Container (IF KNOWN)
-                    #  This will become a threaded handling function... later.
-                    remove_host_route(event["id"])
-                elif event["status"] == "start":
-                    print_and_log("STARTED -- Container id: %s" % (event["id"]))
-                    # Handle /32 Host Route Addition for a Newly Started Container
-                    #  This will become a threaded handling function... later.
-                    add_host_route(event["id"])
+    print("*** EXITING main thread")
 
 if __name__ == "__main__":
     main()

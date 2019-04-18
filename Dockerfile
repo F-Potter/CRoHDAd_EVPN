@@ -21,7 +21,7 @@ RUN /usr/bin/apt-get update -yq && /usr/bin/apt-get install -yq \
 
 RUN pip3 install --upgrade pip
 
-RUN pip3 install docker pyroute2
+RUN pip3 install docker openshift pyroute2
 
 COPY configs/crohdad_start.sh /usr/bin/crohdad_start.sh
 
