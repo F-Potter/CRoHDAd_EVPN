@@ -1,9 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import re
 import time
 import docker
 import pprint
+import os.path
 import logging
 import argparse
 import ipaddress
@@ -14,7 +15,7 @@ from pyroute2 import IPRoute
 #apt-get update -y && apt-get install python-pip iproute2
 #pip install docker pyroute2
 
-version="0.9"
+version="1.1"
 
 parser = argparse.ArgumentParser(description='Cumulus Routing on the Host Docker Advertisement Daemon (cRoHDAD) -- A Daemon to advertise Docker container IP addresses into Routing Fabrics running with Quagga/FRR.')
 parser.add_argument('-d','--debug', action='store_true',
@@ -44,6 +45,7 @@ auto_add_on_startup=True
 # Advertise Everything By Default
 subnets_to_advertise=[]
 #subnets_to_advertise=[u"172.19.0.0/24",u"172.20.0.0/24"]
+log_location='/dev/log'
 log_to_syslog=True
 # Route Table Number To Add/Remove Host Routes
 table_number=30
@@ -66,14 +68,22 @@ pp = pprint.PrettyPrinter(indent=4)
 if log_to_syslog:
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
-    handler = logging.handlers.SysLogHandler(address = '/dev/log')
-    formatter = logging.Formatter('container_advertisement: %(message)s')
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
+    if os.path.exists(log_location):
+        try:
+            handler = logging.handlers.SysLogHandler(address = log_location)
+            formatter = logging.Formatter('container_advertisement: %(message)s')
+            handler.setFormatter(formatter)
+            log.addHandler(handler)
+        except:
+            print("WARNING: The syslog location '%s' could not be attached. Logging will occur via STDOUT only."%log_location)
+            log_to_syslog=False
+    else:
+        print("WARNING: The syslog location '%s' does not exist. Logging will occur via STDOUT only."%log_location)
+        log_to_syslog=False
 
 # API Setup
-client = docker.from_env()
-low_level_client=docker.APIClient(base_url='unix://var/run/docker.sock')
+client = docker.from_env(version="auto")
+low_level_client=docker.APIClient(base_url='unix://var/run/docker.sock', version="auto")
 
 # Pyroute2 Setup
 ip = IPRoute()
@@ -87,7 +97,7 @@ container_IPs={} # Indexed by container_id
 
 
 def print_and_log(somestring):
-    print somestring
+    print(somestring)
     if log_to_syslog: log.info(somestring)
 
 def remove_host_route(container_id):
@@ -114,10 +124,10 @@ def scrape_network_info(docker_container,container_id,network):
     if docker_container[u'NetworkSettings'][u'Networks'][network][u'IPAMConfig'] != None:
         if u'IPv4Address' in docker_container[u'NetworkSettings'][u'Networks'][network][u'IPAMConfig']:
             ip_address=docker_container[u'NetworkSettings'][u'Networks'][network][u'IPAMConfig'][u'IPv4Address']
-            if debug: print "DEBUG: Manually Assigned IP address Found %s (IPAM)."%(ip_address)
+            if debug: print("DEBUG: Manually Assigned IP address Found %s (IPAM)." % (ip_address))
     elif docker_container[u'NetworkSettings'][u'Networks'][network][u'IPAddress'] != u'':
         ip_address=docker_container[u'NetworkSettings'][u'Networks'][network][u'IPAddress']
-        if debug: print "DEBUG: Automatically Assigned IPv4 Address Found %s."%(ip_address)
+        if debug: print("DEBUG: Automatically Assigned IPv4 Address Found %s." % (ip_address))
     else:
         if debug: print_and_log("DEBUG: Container %s has no associated ip address on network %s."%(container_id[:12],network))
         return None,None,None
@@ -238,7 +248,7 @@ def add_route_table(table_number):
 
 
 def main():
-    print """
+    header = """
 ################################################
 #                                              #
 #     Cumulus Routing On the Host              #
@@ -247,6 +257,7 @@ def main():
 #                                              #
 ################################################
 """
+    print(header)
     print_and_log(" STARTING UP.")
 
     add_route_table(table_number)
@@ -262,7 +273,7 @@ def main():
             add_host_route(container.id)
 
     print_and_log("  Listening for Container Activity...")
-    if debug: print "DEBUG: Printing all Docker events for debugging, it may get chatty..."
+    if debug: print("DEBUG: Printing all Docker events for debugging, it may get chatty...")
     try:
         events=client.events(decode=True)
     except:
