@@ -11,14 +11,12 @@ import re
 import time
 import threading
 import yaml
-from kubernetes import client, config
-from openshift.dynamic import DynamicClient
+from kubernetes import client, config, watch
 from pyroute2 import IPRoute
 
 # Prereqs
 # apt-get update -y && apt-get install python3-pip iproute2
-# pip3 install docker pyroute2
-# pip3 install openshift
+# pip3 install docker kubernetes pyroute2
 
 version = "2.0"
 
@@ -425,17 +423,17 @@ def add_host_route_by_k8s_resource(r):
     r_uid = r.metadata.uid
     ip_address = None
 
-    ingressIPs = r.status.loadBalancer.ingress
+    ingressIPs = r.status.load_balancer.ingress
     if ingressIPs is not None:
         if debug >= 1:
             print_and_log(
-                "   This Service has an ingress LoadBalancer, using its IP."
+                "   This Service has an ingress load_balancer, using its IP."
             )
         if debug >= 3:
             pprint.pprint(ingressIPs)
-        ip_address = ingressIPs[0]["ip"]
+        ip_address = ingressIPs[0].ip
     else:
-        ip_address = r.spec.clusterIP
+        ip_address = r.spec.cluster_ip
 
     for subnet in subnets_to_advertise:
         if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
@@ -449,7 +447,7 @@ def add_host_route_by_k8s_resource(r):
     if not ip_is_good:
         if debug >= 1:
             print_and_log(
-                "DEBUG: %s %s clusterIP %s is not in the list of acceptable subnets for advertisement."
+                "DEBUG: %s %s cluster_ip %s is not in the list of acceptable subnets for advertisement."
                 % (r_kind, r_name, ip_address)
             )
         return False
@@ -465,9 +463,9 @@ def add_host_route_by_k8s_resource(r):
         k8s_resource_IPs[r_uid] = {}
 
     # OpenShift 3.11 does seem to bother adding the route for
-    # ingressIPNetworkCIDR, so let's use the clusterIP and the route for
+    # ingressIPNetworkCIDR, so let's use the cluster_ip and the route for
     # serviceNetworkCIDR to figure out the interface towards Docker
-    ifindex = get_ifindex_by_ip(r.spec.clusterIP)
+    ifindex = get_ifindex_by_ip(r.spec.cluster_ip)
     if ifindex == -1:
         print_and_log(
             "    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Failed to add route!"
@@ -636,18 +634,17 @@ class K8sWatcherThread(threading.Thread):
     def run(self):
         global debug
 
-        k8s_client = config.new_client_from_config()
-        dyn_client = DynamicClient(k8s_client)
-        v1_services = dyn_client.resources.get(
-            api_version="v1", kind="Service"
+        k8s_client = client.CoreV1Api(
+            api_client=config.new_client_from_config()
         )
+        w = watch.Watch()
 
         if debug >= 2:
             print_and_log(
                 "*** %s thread started" % (threading.currentThread().name)
             )
 
-        for event in v1_services.watch():
+        for event in w.stream(k8s_client.list_service_for_all_namespaces):
             if debug >= 3:
                 print("DEBUG: Received Kubernetes event:")
                 print(event)
@@ -659,12 +656,12 @@ class K8sWatcherThread(threading.Thread):
                 service_name,
             )
             cluster_ip = None
-            if is_valid_ip(event["object"].spec.clusterIP):
-                cluster_ip = event["object"].spec.clusterIP
-                event_message += " with clusterIP %s" % (cluster_ip)
+            if is_valid_ip(event["object"].spec.cluster_ip):
+                cluster_ip = event["object"].spec.cluster_ip
+                event_message += " with cluster_ip %s" % (cluster_ip)
                 print_and_log(event_message)
             else:
-                event_message += " without a clusterIP. So nothing to do."
+                event_message += " without a cluster_ip. So nothing to do."
                 if debug >= 2:
                     print_and_log(event_message)
                 continue
