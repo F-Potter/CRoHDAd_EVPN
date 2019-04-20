@@ -440,62 +440,54 @@ def add_host_route_by_k8s_resource(r):
             )
         return False
 
-    if r_uid not in k8s_resource_IPs:
-        k8s_resource_IPs[r_uid] = []
-    if ip_address in k8s_resource_IPs[r_uid]:
-        print_and_log(
-            "    NOTICE: Already added route %s/32 for K8s ResourceInstance %s %s. Ignoring."
-            % (ip_address, r_kind, r_name)
-        )
-        return True
-    else:
-        k8s_resource_IPs[r_uid].append(ip_address)
-
-        # OpenShift 3.11 does seem to bother adding the route for
-        # ingressIPNetworkCIDR, so let's use the clusterIP and the route for
-        # serviceNetworkCIDR to figure out the interface towards docker
-        ifindex = get_ifindex_by_ip(r.spec.clusterIP)
-        if ifindex == -1:
+    if r_uid in k8s_resource_IPs:
+        if ip_address in k8s_resource_IPs[r_uid]:
             print_and_log(
-                "    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Things probably won't work."
+                "    NOTICE: Already added route %s/32 for K8s ResourceInstance %s %s. Ignoring."
                 % (ip_address, r_kind, r_name)
             )
-            return False
+            return True
+    else:
+        k8s_resource_IPs[r_uid] = {}
 
+    # OpenShift 3.11 does seem to bother adding the route for
+    # ingressIPNetworkCIDR, so let's use the clusterIP and the route for
+    # serviceNetworkCIDR to figure out the interface towards Docker
+    ifindex = get_ifindex_by_ip(r.spec.clusterIP)
+    if ifindex == -1:
         print_and_log(
-            "    ADDING Host Route: %s/32 (from K8s ResourceInstance %s %s)"
+            "    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Failed to add route!"
             % (ip_address, r_kind, r_name)
         )
-        ip.route(
-            "add",
-            dst="%s/32" % (ip_address),
-            proto="boot",
-            table=table_number,
-            scope="link",
-            oif=ifindex,
-        )
+        return False
+
+    k8s_resource_IPs[r_uid][ip_address] = {
+        'ifindex': ifindex,
+        'ip_address': ip_address,
+    }
+
+    print_and_log(
+        "    ADDING Host Route: %s/32 (from K8s ResourceInstance %s %s)"
+        % (ip_address, r_kind, r_name)
+    )
+    ip.route(
+        "add",
+        dst="%s/32" % (ip_address),
+        proto="boot",
+        table=table_number,
+        scope="link",
+        oif=ifindex,
+    )
 
 
 def remove_host_route_by_k8s_resource(r):
     r_kind = r.kind
     r_name = r.metadata.name
     r_uid = r.metadata.uid
-    ip_address = None
-
-    ingressIPs = r.status.loadBalancer.ingress
-    if ingressIPs is not None:
-        print_and_log(
-            "   This Service has an ingress LoadBalancer, using its IP."
-        )
-        pprint.pprint(ingressIPs)
-        ip_address = ingressIPs[0]["ip"]
-    else:
-        ip_address = r.spec.clusterIP
 
     if r_uid in k8s_resource_IPs:
-        for network_id in k8s_resource_IPs[r_uid]:
-            ip_address = container_IPs[container_id][network_id][u"ip_address"]
-            ifindex = container_IPs[container_id][network_id][u"ifindex"]
+        for ip_address in k8s_resource_IPs[r_uid]:
+            ifindex = k8s_resource_IPs[r_uid][ip_address]['ifindex']
             print_and_log("    REMOVING Host Route: %s/32" % (ip_address))
             ip.route(
                 "del",
@@ -649,11 +641,16 @@ class K8sWatcherThread(threading.Thread):
             if is_valid_ip(event["object"].spec.clusterIP):
                 cluster_ip = event["object"].spec.clusterIP
                 event_message += " with clusterIP %s" % (cluster_ip)
+                print_and_log(event_message)
+            else:
+                event_message += " without a clusterIP. So nothing to do." # debug > 0
+                print_and_log(event_message)
+                continue
 
-            print_and_log(event_message)
-
-            if cluster_ip:
-                add_host_route_by_k8s_resource(event["object"])
+            if event['type'] == 'ADDED' or event['type'] == 'MODIFIED':
+                add_host_route_by_k8s_resource(event['object'])
+            elif event['type'] == 'DELETED':
+                remove_host_route_by_k8s_resource(event['object'])
 
         if debug:
             print_and_log(
