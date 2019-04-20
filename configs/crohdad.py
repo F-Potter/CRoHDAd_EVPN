@@ -32,8 +32,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-d",
     "--debug",
-    action="store_true",
-    help="enables verbose logging output.",
+    action="count",
+    default=0,
+    help="Enables verbose logging output. Repeat for more verbosity (3 max).",
 )
 parser.add_argument(
     "-f",
@@ -102,9 +103,9 @@ log_to_syslog = True
 table_number = 30
 
 # Parse Arguments
-debug = False
+debug = 0
 if args.debug:
-    debug = True
+    debug = args.debug
 if args.table_number:
     table_number = int(args.table_number)
 if args.log_to_syslog_off:
@@ -188,13 +189,13 @@ def remove_host_route(container_id):
 
 
 def scrape_network_info(docker_container, container_id, network):
-    if debug:
+    if debug >= 3:
         print_and_log(
             'DEBUG: Parsing Network: "%s" attached to container %s'
             % (network, container_id[:12])
         )
     if network == u"host":
-        if debug:
+        if debug >= 2:
             print_and_log(
                 'DEBUG: Container %s is on a "host" network.'
                 % (container_id[:12])
@@ -218,7 +219,7 @@ def scrape_network_info(docker_container, container_id, network):
             ip_address = docker_container[u"NetworkSettings"][u"Networks"][
                 network
             ][u"IPAMConfig"][u"IPv4Address"]
-            if debug:
+            if debug >= 2:
                 print(
                     "DEBUG: Manually Assigned IP address Found %s (IPAM)."
                     % (ip_address)
@@ -232,13 +233,13 @@ def scrape_network_info(docker_container, container_id, network):
         ip_address = docker_container[u"NetworkSettings"][u"Networks"][
             network
         ][u"IPAddress"]
-        if debug:
+        if debug >= 2:
             print(
                 "DEBUG: Automatically Assigned IPv4 Address Found %s."
                 % (ip_address)
             )
     else:
-        if debug:
+        if debug >= 2:
             print_and_log(
                 "DEBUG: Container %s has no associated ip address on network %s."
                 % (container_id[:12], network)
@@ -263,7 +264,7 @@ def scrape_network_info(docker_container, container_id, network):
         )
         return None, None, None
 
-    if debug:
+    if debug >= 3:
         print(
             "################[START Network id: %s]####################"
             % (network_id)
@@ -290,7 +291,7 @@ def scrape_network_info(docker_container, container_id, network):
                 nat_enabled = False
             if nat_option == u"true":
                 nat_enabled = True
-                if debug:
+                if debug >= 1:
                     print_and_log(
                         "DEBUG: Container %s is attached to network %s (id:%s) which has NAT enabled. Please Disable NAT on this network."
                         % (container_id[:12], network, network_id[:12])
@@ -334,7 +335,7 @@ def get_ifindex_by_ip(ip_address):
 
 
 def add_host_route_by_container(container_id):
-    if debug:
+    if debug >= 2:
         print_and_log("DEBUG: Querying Container ID: %s" % (container_id[:12]))
     time.sleep(0.2)  # Waiting for Container to be Created
     try:
@@ -345,7 +346,7 @@ def add_host_route_by_container(container_id):
             % (container_id[:12])
         )
         return
-    if debug:
+    if debug >= 3:
         print(
             "################[START CONTAINER id: %s]####################"
             % (container_id[:12])
@@ -372,13 +373,13 @@ def add_host_route_by_container(container_id):
                     subnet
                 ):
                     ip_is_good = True
-                    if debug:
+                    if debug >= 2:
                         print_and_log(
-                            "DEBUG: IP ADDRESS (%s) found in subnet (%s)"
+                            "DEBUG: IP ADDRESS (%s) belongs to one of the subnets allowed for advertisement (%s)"
                             % (ip_address, subnet)
                         )
             if not ip_is_good:
-                if debug:
+                if debug >= 1:
                     print_and_log(
                         "DEBUG: Container %s IP %s is not in the list of acceptable subnets for advertisement."
                         % (container_id[:12], ip_address)
@@ -415,10 +416,12 @@ def add_host_route_by_k8s_resource(r):
 
     ingressIPs = r.status.loadBalancer.ingress
     if ingressIPs is not None:
-        print_and_log(
-            "   This Service has an ingress LoadBalancer, using its IP."
-        )
-        pprint.pprint(ingressIPs)
+        if debug >= 1:
+            print_and_log(
+                "   This Service has an ingress LoadBalancer, using its IP."
+            )
+        if debug >= 3:
+            pprint.pprint(ingressIPs)
         ip_address = ingressIPs[0]["ip"]
     else:
         ip_address = r.spec.clusterIP
@@ -426,14 +429,14 @@ def add_host_route_by_k8s_resource(r):
     for subnet in subnets_to_advertise:
         if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
             ip_is_good = True
-            if debug:
+            if debug >= 2:
                 print_and_log(
-                    "DEBUG: IP ADDRESS (%s) found in subnet (%s)"
+                    "DEBUG: IP ADDRESS (%s) belongs to one of the subnets allowed for advertisement (%s)"
                     % (ip_address, subnet)
                 )
 
     if not ip_is_good:
-        if debug:
+        if debug >= 1:
             print_and_log(
                 "DEBUG: %s %s clusterIP %s is not in the list of acceptable subnets for advertisement."
                 % (r_kind, r_name, ip_address)
@@ -462,8 +465,8 @@ def add_host_route_by_k8s_resource(r):
         return False
 
     k8s_resource_IPs[r_uid][ip_address] = {
-        'ifindex': ifindex,
-        'ip_address': ip_address,
+        "ifindex": ifindex,
+        "ip_address": ip_address,
     }
 
     print_and_log(
@@ -487,7 +490,7 @@ def remove_host_route_by_k8s_resource(r):
 
     if r_uid in k8s_resource_IPs:
         for ip_address in k8s_resource_IPs[r_uid]:
-            ifindex = k8s_resource_IPs[r_uid][ip_address]['ifindex']
+            ifindex = k8s_resource_IPs[r_uid][ip_address]["ifindex"]
             print_and_log("    REMOVING Host Route: %s/32" % (ip_address))
             ip.route(
                 "del",
@@ -508,7 +511,7 @@ def add_route_table(table_number):
             # not found, we are at the eof
             else:
                 # append the containers table
-                if debug:
+                if debug >= 2:
                     print(
                         "DEBUG: Creating Table %s in the Linux Routing Stack"
                         % (table_number)
@@ -550,16 +553,17 @@ def is_valid_ip(str):
 class DockerWatcherThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
+        self.name = self.__class__.__name__
 
     def run(self):
         global debug
-        if debug:
+        if debug >= 2:
             print_and_log(
-                "*** %s thread started" % (threading.currentThread().ident)
+                "*** %s thread started" % (threading.currentThread().name)
             )
 
         print_and_log("  Listening for Container Activity...")
-        if debug:
+        if debug >= 3:
             print(
                 "DEBUG: Printing all Docker events for debugging, it may get chatty..."
             )
@@ -573,7 +577,8 @@ class DockerWatcherThread(threading.Thread):
             exit(1)
 
         for event in events:
-            if debug:
+            if debug >= 3:
+                print("DEBUG: Received Docker event:")
                 pp.pprint(event)
 
             if u"status" in event:
@@ -603,15 +608,16 @@ class DockerWatcherThread(threading.Thread):
                         # function... later.
                         add_host_route_by_container(event["id"])
 
-        if debug:
+        if debug >= 2:
             print_and_log(
-                "*** EXITING %s thread" % (threading.currentThread().ident)
+                "*** EXITING %s thread" % (threading.currentThread().name)
             )
 
 
 class K8sWatcherThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
+        self.name = self.__class__.__name__
 
     def run(self):
         global debug
@@ -622,14 +628,15 @@ class K8sWatcherThread(threading.Thread):
             api_version="v1", kind="Service"
         )
 
-        if debug:
+        if debug >= 2:
             print_and_log(
-                "*** %s thread started" % (threading.currentThread().ident)
+                "*** %s thread started" % (threading.currentThread().name)
             )
 
         for event in v1_services.watch():
-            if debug > 2:
-                print(event["object"])
+            if debug >= 3:
+                print("DEBUG: Received Kubernetes event:")
+                print(event)
 
             service_name = event["object"].metadata.name
             event_message = "Received %s event for %s %s" % (
@@ -643,18 +650,19 @@ class K8sWatcherThread(threading.Thread):
                 event_message += " with clusterIP %s" % (cluster_ip)
                 print_and_log(event_message)
             else:
-                event_message += " without a clusterIP. So nothing to do." # debug > 0
-                print_and_log(event_message)
+                event_message += " without a clusterIP. So nothing to do."
+                if debug >= 2:
+                    print_and_log(event_message)
                 continue
 
-            if event['type'] == 'ADDED' or event['type'] == 'MODIFIED':
-                add_host_route_by_k8s_resource(event['object'])
-            elif event['type'] == 'DELETED':
-                remove_host_route_by_k8s_resource(event['object'])
+            if event["type"] == "ADDED" or event["type"] == "MODIFIED":
+                add_host_route_by_k8s_resource(event["object"])
+            elif event["type"] == "DELETED":
+                remove_host_route_by_k8s_resource(event["object"])
 
-        if debug:
+        if debug >= 2:
             print_and_log(
-                "*** EXITING %s thread" % (threading.currentThread().ident)
+                "*** EXITING %s thread" % (threading.currentThread().name)
             )
 
 
