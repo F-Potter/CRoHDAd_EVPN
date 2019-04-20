@@ -43,6 +43,17 @@ parser.add_argument(
     help="Do not watch for Kubernetes events.",
 )
 parser.add_argument(
+    "--expose-pods", action="store_true", help="Announce K8s Pod IPs."
+)
+parser.add_argument(
+    "--expose-all-services",
+    action="store_true",
+    help=(
+        "Announce K8s Service cluster IPs. (by default we will announce only "
+        " the IPs of Service LoadBalancers as recommended by K8s design)"
+    ),
+)
+parser.add_argument(
     "-f",
     "--no-flush-routes",
     action="store_false",
@@ -119,6 +130,8 @@ if args.log_to_syslog_off:
 enable_docker = args.no_docker
 enable_kubernetes = args.no_kubernetes
 flush_routes = args.no_flush_routes
+expose_pods = args.expose_pods
+expose_all_services = args.expose_all_services
 if args.no_add_on_start:
     auto_add_on_startup = False
 if args.subnets:
@@ -416,24 +429,56 @@ def add_host_route_by_container(container_id):
             )
 
 
+def get_ip_from_k8s_resource(r):
+    r_kind = r.kind
+    r_name = r.metadata.name
+    ip_address = None
+
+    # Service
+    if r_kind == "Service":
+        ingressIPs = r.status.load_balancer.ingress
+
+        if ingressIPs is not None:
+            if debug >= 1:
+                print_and_log(
+                    "   This Service has an ingress load_balancer, using its IP."
+                )
+            if debug >= 3:
+                pprint.pprint(ingressIPs)
+            ip_address = ingressIPs[0].ip
+        elif expose_all_services is True:
+            ip_address = r.spec.cluster_ip
+        else:  # if ingressIPs is None and expose_all_services is False:
+            if debug >= 2:
+                print_and_log(
+                    "DEBUG: %s %s does not have a load_balancer IP, so nothing to do."
+                    % (r_kind, r_name)
+                )
+            return None
+    # [-] Service
+    elif r_kind == "Pod":
+        ip_address = r.status.pod_ip
+
+    if is_valid_ip(ip_address):
+        return ip_address
+    else:
+        return None
+
+
 def add_host_route_by_k8s_resource(r):
     ip_is_good = False
     r_kind = r.kind
     r_name = r.metadata.name
     r_uid = r.metadata.uid
-    ip_address = None
 
-    ingressIPs = r.status.load_balancer.ingress
-    if ingressIPs is not None:
-        if debug >= 1:
+    ip_address = get_ip_from_k8s_resource(r)
+    if ip_address is None:
+        if debug >= 2:
             print_and_log(
-                "   This Service has an ingress load_balancer, using its IP."
+                "DEBUG: No IP addreses to be announced found for %s %s"
+                % (r_kind, r_name)
             )
-        if debug >= 3:
-            pprint.pprint(ingressIPs)
-        ip_address = ingressIPs[0].ip
-    else:
-        ip_address = r.spec.cluster_ip
+        return False
 
     for subnet in subnets_to_advertise:
         if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
@@ -458,14 +503,20 @@ def add_host_route_by_k8s_resource(r):
                 "    NOTICE: Already added route %s/32 for K8s ResourceInstance %s %s. Ignoring."
                 % (ip_address, r_kind, r_name)
             )
-            return True
+            return False
     else:
         k8s_resource_IPs[r_uid] = {}
 
     # OpenShift 3.11 does seem to bother adding the route for
     # ingressIPNetworkCIDR, so let's use the cluster_ip and the route for
     # serviceNetworkCIDR to figure out the interface towards Docker
-    ifindex = get_ifindex_by_ip(r.spec.cluster_ip)
+    try:
+        cluster_ip = r.spec.cluster_ip
+    except AttributeError:
+        if r_kind == "Pod":
+            cluster_ip = r.status.pod_ip
+
+    ifindex = get_ifindex_by_ip(cluster_ip)
     if ifindex == -1:
         print_and_log(
             "    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Failed to add route!"
@@ -626,7 +677,7 @@ class DockerWatcherThread(threading.Thread):
             )
 
 
-class K8sWatcherThread(threading.Thread):
+class K8sServiceWatcherThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.name = self.__class__.__name__
@@ -662,6 +713,61 @@ class K8sWatcherThread(threading.Thread):
                 print_and_log(event_message)
             else:
                 event_message += " without a cluster_ip. So nothing to do."
+                if debug >= 2:
+                    print_and_log(event_message)
+                continue
+
+            if event["type"] == "ADDED" or event["type"] == "MODIFIED":
+                add_host_route_by_k8s_resource(event["object"])
+            elif event["type"] == "DELETED":
+                remove_host_route_by_k8s_resource(event["object"])
+
+        if debug >= 2:
+            print_and_log(
+                "*** EXITING %s thread" % (threading.currentThread().name)
+            )
+
+
+class K8sPodWatcherThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.name = self.__class__.__name__
+
+    def run(self):
+        global debug
+
+        k8s_client = client.CoreV1Api(
+            api_client=config.new_client_from_config()
+        )
+        w = watch.Watch()
+
+        if debug >= 2:
+            print_and_log(
+                "*** %s thread started" % (threading.currentThread().name)
+            )
+
+        for event in w.stream(k8s_client.list_pod_for_all_namespaces):
+            if debug >= 3:
+                print("DEBUG: Received Kubernetes event:")
+                print(event)
+
+            service_name = event["object"].metadata.name
+            event_message = "Received %s event for %s %s" % (
+                event["type"],
+                event["object"].kind,
+                service_name,
+            )
+            pod_ip = None
+            if is_valid_ip(event["object"].status.pod_ip):
+                pod_ip = event["object"].status.pod_ip
+                event_message += " with pod_ip %s" % (pod_ip)
+                # we don't want to announce Pods with the IP of the host
+                if pod_ip == event["object"].status.host_ip:
+                    event_message += " which is the host's IP, so ignoring."
+                    continue
+                print_and_log(event_message)
+            else:
+                event_message += " without a pod_ip. So nothing to do."
                 if debug >= 2:
                     print_and_log(event_message)
                 continue
@@ -716,9 +822,13 @@ def main():
 
     # Kubernetes
     if enable_kubernetes is True:
-        print_and_log("*** Going to watch for Kubernetes events ***")
-        t = K8sWatcherThread()
+        print_and_log("*** Going to watch for Kubernetes Service events ***")
+        t = K8sServiceWatcherThread()
         threads.append(t)
+        if expose_pods:
+            print_and_log("*** Going to watch for Kubernetes Pod events ***")
+            t = K8sPodWatcherThread()
+            threads.append(t)
     # [-] Kubernetes
 
     for t in threads:
