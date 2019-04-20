@@ -37,6 +37,14 @@ parser.add_argument(
     help="Enables verbose logging output. Repeat for more verbosity (3 max).",
 )
 parser.add_argument(
+    "--no-docker", action="store_false", help="Do not watch for Docker events."
+)
+parser.add_argument(
+    "--no-kubernetes",
+    action="store_false",
+    help="Do not watch for Kubernetes events.",
+)
+parser.add_argument(
     "-f",
     "--no-flush-routes",
     action="store_false",
@@ -110,6 +118,9 @@ if args.table_number:
     table_number = int(args.table_number)
 if args.log_to_syslog_off:
     log_to_syslog = False
+enable_docker = args.no_docker
+enable_kubernetes = args.no_kubernetes
+flush_routes = args.no_flush_routes
 if args.no_add_on_start:
     auto_add_on_startup = False
 if args.subnets:
@@ -148,7 +159,7 @@ if log_to_syslog:
         log_to_syslog = False
 
 # API Setup
-client = docker.from_env(version="auto")
+docker_client = docker.from_env(version="auto")
 low_level_client = docker.APIClient(
     base_url="unix://var/run/docker.sock", version="auto"
 )
@@ -532,10 +543,13 @@ def add_route_table(table_number):
         '\n    *Adding All Host Routes to Table %s*\n      Run "ip route show table %s" to see routes.'
         % (table_number, table_number)
     )
-    print_and_log(
-        "    Flushing any pre-existing routes from table %s." % (table_number)
-    )
-    ip.flush_routes(table=table_number)
+
+    if flush_routes:
+        print_and_log(
+            "    Flushing any pre-existing routes from table %s."
+            % (table_number)
+        )
+        ip.flush_routes(table=table_number)
 
 
 def is_valid_ip(str):
@@ -569,7 +583,7 @@ class DockerWatcherThread(threading.Thread):
             )
 
         try:
-            events = client.events(decode=True)
+            events = docker_client.events(decode=True)
         except:
             print_and_log(
                 "ERROR: Cannot Retreive Docker Events Stream. Is Docker installed and started?"
@@ -681,24 +695,34 @@ def main():
 
     add_route_table(table_number)
 
-    if auto_add_on_startup:
-        print_and_log(
-            "\n\n  Auto-Detecting existing containers and adding host routes..."
-        )
-        try:
-            container_list = client.containers.list()
-        except:
+    # Docker
+    if enable_docker is True:
+        print_and_log("*** Going to watch for Docker events ***")
+        if auto_add_on_startup:
             print_and_log(
-                "ERROR: Cannot Communicate with Docker-Engine API. Is Docker installed and started?"
+                "\n\n  Auto-Detecting existing containers and adding host routes..."
             )
-            exit(1)
-        for container in container_list:
-            add_host_route_by_container(container.id)
 
-    t = DockerWatcherThread()
-    threads.append(t)
-    t = K8sWatcherThread()
-    threads.append(t)
+            try:
+                container_list = docker_client.containers.list()
+            except:
+                print_and_log(
+                    "ERROR: Cannot Communicate with Docker-Engine API. Is Docker installed and started?"
+                )
+                exit(1)
+            for container in container_list:
+                add_host_route_by_container(container.id)
+
+        t = DockerWatcherThread()
+        threads.append(t)
+    # [-] Docker
+
+    # Kubernetes
+    if enable_kubernetes is True:
+        print_and_log("*** Going to watch for Kubernetes events ***")
+        t = K8sWatcherThread()
+        threads.append(t)
+    # [-] Kubernetes
 
     for t in threads:
         t.start()
