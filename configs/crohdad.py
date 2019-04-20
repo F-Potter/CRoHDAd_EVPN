@@ -65,6 +65,8 @@ if args.subnets:
     subnets_to_advertise=[]
     for subnet in args.subnets:
         subnets_to_advertise.append(unicode(subnet))
+if len(subnets_to_advertise) == 0:
+    subnets_to_advertise.append(u'0.0.0.0/0')
 
 # PrettyPrint Setup
 pp = pprint.PrettyPrinter(indent=4)
@@ -219,7 +221,6 @@ def add_host_route_by_container(container_id):
 
         if ip_address != None:
             ip_is_good=False
-            if len(subnets_to_advertise) == 0: subnets_to_advertise.append(u'0.0.0.0/0')
             for subnet in subnets_to_advertise:
                 if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
                     ip_is_good=True
@@ -240,16 +241,22 @@ def add_host_route_by_container(container_id):
                      table=table_number,
                      scope="link",
                      oif=ifindex)
-                     
+
 def add_host_route_by_k8s_resource(r):
     ip_is_good=False
-    ip_address = r['spec']['clusterIP']
-    r_kind = r['kind']
-    r_name = r['metadata']['name']
-    r_uid = r['metadata']['uid']
+    r_kind = r.kind
+    r_name = r.metadata.name
+    r_uid = r.metadata.uid
+    ip_address = None
 
-    if len(subnets_to_advertise) == 0:
-        subnets_to_advertise.append(u'0.0.0.0/0')
+    ingressIPs = r.status.loadBalancer.ingress
+    if ingressIPs is not None:
+        print_and_log("   This Service has an ingress LoadBalancer, using its IP.")
+        pprint.pprint(ingressIPs)
+        ip_address = ingressIPs[0]['ip']
+    else:
+        ip_address = r.spec.clusterIP
+
     for subnet in subnets_to_advertise:
         if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
             ip_is_good=True
@@ -262,7 +269,7 @@ def add_host_route_by_k8s_resource(r):
             print_and_log("DEBUG: %s %s clusterIP %s is not in the list of acceptable subnets for advertisement."
                 % (r_kind, r_name, ip_address))
         return False
-    
+
     if r_uid not in k8s_resource_IPs:
         k8s_resource_IPs[r_uid] = []
     if ip_address in k8s_resource_IPs[r_uid]:
@@ -271,13 +278,16 @@ def add_host_route_by_k8s_resource(r):
         return True
     else:
         k8s_resource_IPs[r_uid].append(ip_address)
-        
-        ifindex = get_ifindex_by_ip(ip_address)
+
+        # OpenShift 3.11 does seem to bother adding the route for ingressIPNetworkCIDR,
+        # so let's use the clusterIP and the route for serviceNetworkCIDR to figure out
+        # the interface towards docker
+        ifindex = get_ifindex_by_ip(r.spec.clusterIP)
         if ifindex == -1:
             print_and_log("    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Things probably won't work."
                         % (ip_address, r_kind, r_name))
             return False
-        
+
         print_and_log("    ADDING Host Route: %s/32 (from K8s ResourceInstance %s %s)"
                     % (ip_address, r_kind, r_name))
         ip.route("add",
@@ -288,11 +298,38 @@ def add_host_route_by_k8s_resource(r):
                  oif=ifindex)
 
 
+def remove_host_route_by_k8s_resource(r):
+    r_kind = r.kind
+    r_name = r.metadata.name
+    r_uid = r.metadata.uid
+    ip_address = None
+
+    ingressIPs = r.status.loadBalancer.ingress
+    if ingressIPs is not None:
+        print_and_log("   This Service has an ingress LoadBalancer, using its IP.")
+        pprint.pprint(ingressIPs)
+        ip_address = ingressIPs[0]['ip']
+    else:
+        ip_address = r.spec.clusterIP
+
+    if r_uid in k8s_resource_IPs:
+        for network_id in k8s_resource_IPs[r_uid]:
+            ip_address=container_IPs[container_id][network_id][u'ip_address']
+            ifindex=container_IPs[container_id][network_id][u'ifindex']
+            print_and_log("    REMOVING Host Route: %s/32"%(ip_address))
+            ip.route("del",
+                     dst="%s/32"%(ip_address),
+                     proto="boot",
+                     table=table_number,
+                     scope="link",
+                     oif=ifindex)
+
+
 def add_route_table(table_number):
     try:
         with open("/etc/iproute2/rt_tables", "r+") as route_tables:
             for line in route_tables:
-                if re.match("%s.*\w+"%(table_number),line):                  
+                if re.match("%s.*\w+"%(table_number),line):
                    break
             # not found, we are at the eof
             else:
@@ -318,7 +355,7 @@ def is_valid_ip(str):
         pass
     except KeyError:
         pass
-    
+
     return False
 
 
@@ -374,25 +411,28 @@ class K8sWatcherThread(threading.Thread):
 
     def run(self):
         global debug
-        
+
         k8s_client = config.new_client_from_config()
         dyn_client = DynamicClient(k8s_client)
         v1_services = dyn_client.resources.get(api_version='v1', kind='Service')
-        
+
         if debug:
             print_and_log("*** %s thread started"
                   % (threading.currentThread().ident))
 
         for event in v1_services.watch():
-#            print(event['object'])
-            
-            service_name = event['object']['metadata']['name']
-            print_and_log("Received %s event for %s %s"
-                % (event['type'], event['object']['kind'], service_name))
-            if is_valid_ip(event['object']['spec']['clusterIP']):
-                cluster_ip = event['object']['spec']['clusterIP']
-                print_and_log("Cluster IP is %s" % (cluster_ip))
+            if debug > 2: print(event['object'])
 
+            service_name = event['object'].metadata.name
+            event_message = "Received %s event for %s %s" % (event['type'], event['object'].kind, service_name)
+            cluster_ip = None
+            if is_valid_ip(event['object'].spec.clusterIP):
+                cluster_ip = event['object'].spec.clusterIP
+                event_message += " with clusterIP %s" % (cluster_ip)
+
+            print_and_log(event_message)
+
+            if cluster_ip:
                 add_host_route_by_k8s_resource(event['object'])
 
         if debug:
@@ -405,7 +445,7 @@ def main():
 ################################################
 #                                              #
 #     Cumulus Routing On the Host              #
-#       Docker Advertisement Daemon            #
+#       Docker & K8s Advertisement Daemon      #
 #             --cRoHDAd--                      #
 #                                              #
 ################################################
@@ -414,7 +454,7 @@ def main():
     print_and_log(" STARTING UP.")
 
     add_route_table(table_number)
-    
+
     if auto_add_on_startup:
         print_and_log("\n\n  Auto-Detecting existing containers and adding host routes...")
         try:
@@ -429,11 +469,12 @@ def main():
     threads.append(t)
     t = K8sWatcherThread()
     threads.append(t)
-    
+
     for t in threads:
         t.start()
 
-    print("*** EXITING main thread")
+    if debug > 0:
+        print("*** All WatcherThreads launched, exiting main thread")
 
 if __name__ == "__main__":
     main()
