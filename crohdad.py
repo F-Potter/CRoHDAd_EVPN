@@ -117,7 +117,7 @@ subnets_to_advertise = []
 log_location = "/dev/log"
 log_to_syslog = True
 # Route Table Number To Add/Remove Host Routes
-table_number = 1001
+table_number = 30
 
 # Parse Arguments
 debug = 0
@@ -157,13 +157,13 @@ if log_to_syslog:
             handler.setFormatter(formatter)
             log.addHandler(handler)
         except:
-            print_and_log(
+            print(
                 "WARNING: The syslog location '%s' could not be attached. Logging will occur via STDOUT only."
                 % log_location
             )
             log_to_syslog = False
     else:
-        print_and_log(
+        print(
             "WARNING: The syslog location '%s' does not exist. Logging will occur via STDOUT only."
             % log_location
         )
@@ -185,9 +185,8 @@ container_IPs = {}  # Indexed by container_id
 #   network_ID:
 #     bridge_ifindex:
 #     ip_address:
-#   labels
-#     label
 k8s_resource_IPs = {}
+
 
 def print_and_log(somestring):
     print(somestring)
@@ -200,18 +199,16 @@ def remove_host_route(container_id):
         for network_id in container_IPs[container_id]:
             ip_address = container_IPs[container_id][network_id][u"ip_address"]
             ifindex = container_IPs[container_id][network_id][u"ifindex"]
-            label = container_IPs[container_id][network_id][u"vrf"]
-            table = container_IPs[container_id][network_id][u"table"]
             print_and_log("    REMOVING Host Route: %s/32" % (ip_address))
             ip.route(
                 "del",
                 dst="%s/32" % (ip_address),
                 proto="boot",
                 table=table_number,
-                vrf=label,
                 scope="link",
                 oif=ifindex,
             )
+
 
 def scrape_network_info(docker_container, container_id, network):
     if debug >= 3:
@@ -225,48 +222,7 @@ def scrape_network_info(docker_container, container_id, network):
                 'DEBUG: Container %s is on a "host" network.'
                 % (container_id[:12])
             )
-    return None, None, None
-
-    # Scrape Label
-    label = None
-    if (
-	docker_container[u"Config"][u"Labels"][u"vrf"]
-	!= None
-       ):
-        label = docker_container[u"Config"][u"Labels"][u"vrf"]
-        if debug >= 2:
-            print(
-                "DEBUG: Manually Assigned VRF found %s."
-                % (label)
-            )
-    else:
-        if debug >= 2:
-            print_and_log(
-                "DEBUG: Container %s has no associated label VRF."
-                % (container_id[:12])
-            )
         return None, None, None
-
-    # Scrape Table_number
-    table_number = None
-    if (
-	docker_container[u"Config"][u"Labels"][u"table"]
-	!= None
-       ):
-        label = docker_container[u"Config"][u"Labels"][u"table"]
-        if debug >= 2:
-            print(
-                "DEBUG: Manually Assigned Table found %s."
-                % (table_number)
-            )
-    else:
-        if debug >= 2:
-            print_and_log(
-                "DEBUG: Container %s has no associated label Table."
-                % (container_id[:12])
-            )
-        return None, None, None
-
 
     # Scrape IP Address
     ip_address = None
@@ -319,8 +275,6 @@ def scrape_network_info(docker_container, container_id, network):
     if network_id == u"":
         print_and_log("WARNING: Received bad network_id.")
         return None, None, None
-
-
 
     # Query Network_ID
     try:
@@ -385,7 +339,7 @@ def scrape_network_info(docker_container, container_id, network):
         )
         return None, None, None
 
-    return ifindex, ip_address, network_id, label, table_number
+    return ifindex, ip_address, network_id
 
 
 def get_ifindex_by_ip(ip_address):
@@ -453,15 +407,13 @@ def add_host_route_by_container(container_id):
                         % (container_id[:12], ip_address)
                     )
                 continue
-            # Store Container_ID, (Network_Id,IP_Address,Bridge_ifindex,label)
+            # Store Container_ID, (Network_Id,IP_Address,Bridge_ifindex,Network_Id)
             if container_id not in container_IPs:
                 container_IPs[container_id] = {}
             if network_id not in container_IPs[container_id]:
                 container_IPs[container_id][network_id] = {}
             container_IPs[container_id][network_id][u"ifindex"] = ifindex
             container_IPs[container_id][network_id][u"ip_address"] = ip_address
-            container_IPs[container_id][network_id][u"vrf"] = label
-            container_IPs[container_id][network_id][u"table"] = table_number
 
             print_and_log(
                 "    ADDING Host Route: %s/32 (from container: %s)"
@@ -472,7 +424,6 @@ def add_host_route_by_container(container_id):
                 dst="%s/32" % (ip_address),
                 proto="boot",
                 table=table_number,
-		vrf=label,
                 scope="link",
                 oif=ifindex,
             )
@@ -482,8 +433,6 @@ def get_ip_from_k8s_resource(r):
     r_kind = r.kind
     r_name = r.metadata.name
     ip_address = None
-    label = None
-    label_table_number = None
 
     # Service
     if r_kind == "Service":
@@ -512,31 +461,15 @@ def get_ip_from_k8s_resource(r):
 
     if is_valid_ip(ip_address):
         return ip_address
-
-        if 'vrf' in r.metadata.labels:
-          label = r.metadata.labels['vrf']
-          return label
-
-        else:
-          print('Label vrf does not exist!!!')
-
-        if 'table' in r.metadata.labels:
-          table = r.metadata.labels['table']
-          label_table_number= int(table)
-          return label_table_number
-
-        else:
-          print('Label table does not exist!!!')
-
     else:
         return None
+
 
 def add_host_route_by_k8s_resource(r):
     ip_is_good = False
     r_kind = r.kind
     r_name = r.metadata.name
     r_uid = r.metadata.uid
-    label_table_number = None
 
     ip_address = get_ip_from_k8s_resource(r)
     if ip_address is None:
@@ -546,32 +479,6 @@ def add_host_route_by_k8s_resource(r):
                 % (r_kind, r_name)
             )
         return False
-
-
-    label = get_ip_from_k8s_resource(r)
-    if label is None:
-        if debug >= 2:
-            print_and_log(
-                "DEBUG: No label to be announced found for %s %s"
-                % (r_kind, r_name)
-            )
-        return False
-
-    label_table_number = get_ip_from_k8s_resource(r)
-    if label_table_number is None:
-        if debug >= 2:
-            print_and_log(
-                "DEBUG: No table to be announced found for %s %s"
-                % (r_kind, r_name)
-            )
-        return False
-
-    if label_table_number is None:
-      if 'table' in r.metadata.labels:
-        table = r.metadata.labels['table']
-        label_table_number= int(table)
-      return label_table_number
-
 
     for subnet in subnets_to_advertise:
         if ipaddress.ip_address(ip_address) in ipaddress.ip_network(subnet):
@@ -609,25 +516,11 @@ def add_host_route_by_k8s_resource(r):
         if r_kind == "Pod":
             cluster_ip = r.status.pod_ip
 
-    try:
-       label_table_number = r.metadata.labels['table']
-    except:
-       if r_kind == "Pod":
-         for i in r.metadata.labels:
-           if 'table' in r.metadata.labels:
-             label_table_number = r.metadata.labels['table']
-             print(label_table_number)
-             return label_table_number
-           else:
-             if is_valid_ip(label_table_number):
-               label_table_number = None
-             return label_table_number
-
     ifindex = get_ifindex_by_ip(cluster_ip)
     if ifindex == -1:
         print_and_log(
-            "    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s table %s). Failed to add route!"
-            % (ip_address, r_kind, r_name, label_table_number)
+            "    ERROR: Unable to determine ifindex for route %s/32 (for K8s ResourceInstance %s %s). Failed to add route!"
+            % (ip_address, r_kind, r_name)
         )
         return False
 
@@ -637,16 +530,15 @@ def add_host_route_by_k8s_resource(r):
     }
 
     print_and_log(
-        "    ADDING Host Route: %s/32 (from K8s ResourceInstance %s %s table %s)"
-        % (ip_address, r_kind, r_name, label_table_number)
+        "    ADDING Host Route: %s/32 (from K8s ResourceInstance %s %s)"
+        % (ip_address, r_kind, r_name)
     )
     ip.route(
         "add",
         dst="%s/32" % (ip_address),
         proto="boot",
-	table=int(label_table_number),
-        vrf=label,
-	scope="link",
+        table=table_number,
+        scope="link",
         oif=ifindex,
     )
 
@@ -656,52 +548,16 @@ def remove_host_route_by_k8s_resource(r):
     r_name = r.metadata.name
     r_uid = r.metadata.uid
 
-    label = get_ip_from_k8s_resource(r)
-    if label is None:
-        if debug >= 2:
-            print_and_log(
-                "DEBUG: No label found for %s %s"
-                % (r_kind, r_name)
-            )
-        return False
-
-    #table_number = get_ip_from_k8s_resource(r)
-    #if table_number is None:
-    #    if debug >= 2:
-    #        print_and_log(
-    #            "DEBUG: No table to be announced found for %s %s"
-    #            % (r_kind, r_name)
-    #        )
-    #    return False
-
-    try:
-       label_table_number = r.metadata.labels['table']
-    except:
-       if r_kind == "Pod":
-         for i in r.metadata.labels:
-           if 'table' in r.metadata.labels:
-             label_table_number = r.metadata.labels['table']
-             print(label_table_number)
-             return label_table_number
-           else:
-             if is_valid_ip(label_table_number):
-               label_table_number = None
-             return label_table_number
-
-
     if r_uid in k8s_resource_IPs:
         for ip_address in k8s_resource_IPs[r_uid]:
             ifindex = k8s_resource_IPs[r_uid][ip_address]["ifindex"]
             print_and_log("    REMOVING Host Route: %s/32" % (ip_address))
-            #table_int = int(table_number)
-            #print(type(table_int))
             ip.route(
                 "del",
                 dst="%s/32" % (ip_address),
                 proto="boot",
-                table=int(label_table_number),
-		vrf=label,
-		scope="link",
+                table=table_number,
+                scope="link",
                 oif=ifindex,
             )
 
