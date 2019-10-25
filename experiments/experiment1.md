@@ -80,7 +80,7 @@ root@server04:/home/cumulus# ip route
 ```
 
 ### Container IP of Container2 on Server4 and connectivity to Container4 on Server8 in VRF Tenant2
-<cli>
+```
 root@server04:/home/cumulus# docker exec -it 129846c9053d sh
 / # ip a
 3: eth0@if47: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP 
@@ -113,21 +113,20 @@ PING 10.244.7.10 (10.244.7.10): 56 data bytes
 --- 10.244.7.10 ping statistics ---
 2 packets transmitted, 2 packets received, 0% packet loss
 round-trip min/avg/max = 1.593/1.609/1.625 ms
-</cli>
-
+```
 
 ## Server08
 ### VRF Tenant2
-<cli>
+```
 root@server08:/home/cumulus# ip route sh vrf tenant2
 10.244.3.0/24 via 10.250.250.14 dev dummysvi404002 proto bgp metric 20 onlink 
 10.244.3.12 via 10.250.250.14 dev dummysvi404002 proto bgp metric 20 onlink 
 10.244.7.0/24 dev cni0 proto kernel scope link src 10.244.7.1 
 10.244.7.10 dev cni0 scope link 
-</cli>
+```
 
 ### Bridge cni0 in Tenant2
-<cli>
+```
 root@server08:/home/cumulus# address-family ipv4 unicast
 address-family: command not found
 root@server08:/home/cumulus# vtysh -c 'sh int cni0'
@@ -143,10 +142,10 @@ Interface cni0 is up, line protocol is up
   inet6 fe80::bcf3:60ff:fe34:49c2/64
   Interface Type Bridge
   Bridge VLAN-aware: no
-</cli>
+```
 
 ### IP address of cni0
-<cli>
+```
 root@server08:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         inet 10.244.7.1  netmask 255.255.255.0  broadcast 0.0.0.0
@@ -156,10 +155,10 @@ cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         RX errors 0  dropped 0  overruns 0  frame 0
         TX packets 470  bytes 42079 (42.0 KB)
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
-</cli>
+```
 
 ### Global routing table
-<cli>
+```
 root@server08:/home/cumulus# ip route
 10.250.250.10 proto bgp metric 20 
 	nexthop via 169.254.0.1 dev eth1 weight 1 onlink 
@@ -182,10 +181,10 @@ root@server08:/home/cumulus# ip route
 10.250.250.17 proto bgp metric 20 
 	nexthop via 169.254.0.1 dev eth1 weight 1 onlink 
 	nexthop via 169.254.0.1 dev eth2 weight 1 onlink 
-</cli>
+```
 
 ### Container IP of Container4 on Server8 and connectivity to Container2 on Server4 in VRF Tenant2
-<cli>
+```
 root@server08:/home/cumulus# docker exec -it 7fced16e747b sh
 / # ip a
 3: eth0@if47: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP 
@@ -202,20 +201,20 @@ PING 10.244.3.12 (10.244.3.12): 56 data bytes
 --- 10.244.3.12 ping statistics ---
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 1.584/1.987/2.750 ms
-</cli>
+```
 
 ## Server02
 ### VRF Tenant1
-<cli>
+```
 root@server02:/home/cumulus# ip route sh vrf tenant1
 10.244.1.0/24 dev cni0 proto kernel scope link src 10.244.1.1
 10.244.1.106 dev cni0 scope link
 10.244.5.0/24 via 10.250.250.16 dev dummysvi404001 proto bgp metric 20 onlink
 10.244.5.11 via 10.250.250.16 dev dummysvi404001 proto bgp metric 20 onlink
-</cli>
+```
 
 ### Bridge cni0 in Tenant1
-<cli>
+```
 root@server02:/home/cumulus# vtysh -c 'show int cni0'
 Interface cni0 is up, line protocol is up
   Link ups:       3    last: 2019/10/17 18:41:01.52
@@ -229,10 +228,10 @@ Interface cni0 is up, line protocol is up
   inet6 fe80::cc09:12ff:fe7d:b84/64
   Interface Type Bridge
   Bridge VLAN-aware: no
-</cli>
+```
 
 ### IP address of cni0
-<cli>
+```
 root@server02:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         inet 10.244.1.1  netmask 255.255.255.0  broadcast 0.0.0.0
@@ -242,10 +241,10 @@ cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         RX errors 0  dropped 0  overruns 0  frame 0
         TX packets 47  bytes 4526 (4.5 KB)
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
-</cli>
+```
 
 ### Global routing table
-<cli>
+```
 root@server02:/home/cumulus# ip route
 10.250.250.10 proto bgp metric 20
         nexthop via 169.254.0.1 dev eth1 weight 1 onlink
@@ -268,10 +267,10 @@ root@server02:/home/cumulus# ip route
 10.250.250.18 proto bgp metric 20
         nexthop via 169.254.0.1 dev eth1 weight 1 onlink
         nexthop via 169.254.0.1 dev eth2 weight 1 onlink
-</cli>
+```
 
 ### Container IP of Container1 on Server2 and connectivity to Container3 on Server6 in VRF Tenant1
-<cli>
+```
 root@server02:/home/cumulus# docker exec -it 5016fbcfc7cb sh
 / # ip a
 3: eth0@if43: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -306,21 +305,21 @@ PING 10.244.5.11 (10.244.5.11): 56 data bytes
 --- 10.244.5.11 ping statistics ---
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 2.033/2.128/2.273 ms
-</cli>
+```
 
 
 ## Server06
 ### VRF Tenant1
-<cli>
+```
 root@server06:/home/cumulus# ip route sh vrf tenant1
 10.244.1.0/24 via 10.250.250.11 dev dummysvi404001 proto bgp metric 20 onlink
 10.244.1.106 via 10.250.250.11 dev dummysvi404001 proto bgp metric 20 onlink
 10.244.5.0/24 dev cni0 proto kernel scope link src 10.244.5.1
 10.244.5.11 dev cni0 scope link
-</cli>
+```
 
 ### Bridge cni0 in Tenant1
-<cli>
+```
 root@server06:/home/cumulus# vtysh -c 'show int cni0'
 Interface cni0 is up, line protocol is up
   Link ups:       3    last: 2019/10/17 11:50:49.92
@@ -334,10 +333,10 @@ Interface cni0 is up, line protocol is up
   inet6 fe80::685e:a5ff:fe95:bd10/64
   Interface Type Bridge
   Bridge VLAN-aware: no
-</cli>
+```
 
 ### IP address of cni0
-<cli>
+```
 root@server06:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         inet 10.244.5.1  netmask 255.255.255.0  broadcast 0.0.0.0
@@ -347,10 +346,10 @@ cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         RX errors 0  dropped 0  overruns 0  frame 0
         TX packets 40  bytes 3868 (3.8 KB)
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
-</cli>
+```
 
 ### Global routing table
-<cli>
+```
 root@server06:/home/cumulus# ip route
 10.250.250.10 proto bgp metric 20
         nexthop via 169.254.0.1 dev eth1 weight 1 onlink
@@ -373,10 +372,10 @@ root@server06:/home/cumulus# ip route
 10.250.250.18 proto bgp metric 20
         nexthop via 169.254.0.1 dev eth1 weight 1 onlink
         nexthop via 169.254.0.1 dev eth2 weight 1 onlink
-</cli>
+```
 
 ### Container IP of Container3 on Server6 and connectivity to Container1 on Server2 in VRF Tenant1
-<cli>
+```
 root@server06:/home/cumulus# docker exec -it f2c3b88744f3 sh
 / # ip a
 3: eth0@if43: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -413,11 +412,11 @@ PING 10.244.1.106 (10.244.1.106): 56 data bytes
 --- 10.244.1.106 ping statistics ---
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 2.035/2.179/2.442 ms
-</cli>
+```
 
 ## Cross connectivity
 ### No cross connectivity from Container3 on Server6 to Container2/Bridge2 on Server4 and Container4/Bridge4 on Server8
-<cli>
+```
 root@server06:/home/cumulus# docker exec -it f2c3b88744f3 sh
 / # ip a
 3: eth0@if43: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -448,10 +447,10 @@ PING 10.244.7.1 (10.244.7.1): 56 data bytes
 PING 10.244.7.10 (10.244.7.10): 56 data bytes
 --- 10.244.7.10 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
-</cli>
+```
 
 ### No cross connectivity from Container2 on Server4 to Container1/Bridge1 on Server2 and Container3/Bridge3 on Server6
-<cli>
+```
 root@server04:/home/cumulus# docker exec -it 129846c9053d sh
 / # ip a
 3: eth0@if47: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -482,7 +481,7 @@ PING 10.244.5.1 (10.244.5.1): 56 data bytes
 PING 10.244.5.11 (10.244.5.11): 56 data bytes
 --- 10.244.5.11 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
-</cli>
+```
 
 ## Traffic flow
 ### Note VXLAN in the packet
