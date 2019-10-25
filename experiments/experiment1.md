@@ -10,8 +10,8 @@ root@server01:/home/cumulus# kubectl get pods -o wide
 NAME                              READY   STATUS    RESTARTS   AGE     IP             NODE
 my-deployment1-7977bf45d4-gtsth   1/1     Running   0          2d9h    10.244.3.12    server04
 my-deployment2-b58cb668d-w4kkz    1/1     Running   0          2d9h    10.244.7.10    server08
-my-deployment3-5ccfdd455f-jnxgw   1/1     Running   0          2d5h    10.244.1.106   server02
-my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.11    server06
+my-deployment3-5ccfdd455f-jnxgw   1/1     Running   0          2d5h    10.244.1.98   server02
+my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.4    server06
 ```
 
 ## Server04
@@ -208,9 +208,9 @@ round-trip min/avg/max = 1.584/1.987/2.750 ms
 ```
 root@server02:/home/cumulus# ip route sh vrf tenant1
 10.244.1.0/24 dev cni0 proto kernel scope link src 10.244.1.1
-10.244.1.106 dev cni0 scope link
+10.244.1.98 dev cni0 scope link
 10.244.5.0/24 via 10.250.250.16 dev dummysvi404001 proto bgp metric 20 onlink
-10.244.5.11 via 10.250.250.16 dev dummysvi404001 proto bgp metric 20 onlink
+10.244.5.4 via 10.250.250.16 dev dummysvi404001 proto bgp metric 20 onlink
 ```
 
 ### Bridge cni0 in Tenant1
@@ -275,7 +275,7 @@ root@server02:/home/cumulus# docker exec -it 5016fbcfc7cb sh
 / # ip a
 3: eth0@if43: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
     link/ether 9e:13:1f:86:ac:fe brd ff:ff:ff:ff:ff:ff
-    inet 10.244.1.106/24 scope global eth0
+    inet 10.244.1.98/24 scope global eth0
        valid_lft forever preferred_lft forever
 
 / # ping 10.244.1.1
@@ -297,12 +297,12 @@ PING 10.244.5.1 (10.244.5.1): 56 data bytes
 round-trip min/avg/max = 2.249/2.314/2.384 ms
 
 
-/ # ping 10.244.5.11
-PING 10.244.5.11 (10.244.5.11): 56 data bytes
-64 bytes from 10.244.5.11: seq=0 ttl=62 time=2.080 ms
-64 bytes from 10.244.5.11: seq=1 ttl=62 time=2.273 ms
-64 bytes from 10.244.5.11: seq=2 ttl=62 time=2.033 ms
---- 10.244.5.11 ping statistics ---
+/ # ping 10.244.5.4
+PING 10.244.5.4 (10.244.5.4): 56 data bytes
+64 bytes from 10.244.5.4: seq=0 ttl=62 time=2.080 ms
+64 bytes from 10.244.5.4: seq=1 ttl=62 time=2.273 ms
+64 bytes from 10.244.5.4: seq=2 ttl=62 time=2.033 ms
+--- 10.244.5.4 ping statistics ---
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 2.033/2.128/2.273 ms
 ```
@@ -313,9 +313,9 @@ round-trip min/avg/max = 2.033/2.128/2.273 ms
 ```
 root@server06:/home/cumulus# ip route sh vrf tenant1
 10.244.1.0/24 via 10.250.250.11 dev dummysvi404001 proto bgp metric 20 onlink
-10.244.1.106 via 10.250.250.11 dev dummysvi404001 proto bgp metric 20 onlink
+10.244.1.98 via 10.250.250.11 dev dummysvi404001 proto bgp metric 20 onlink
 10.244.5.0/24 dev cni0 proto kernel scope link src 10.244.5.1
-10.244.5.11 dev cni0 scope link
+10.244.5.4 dev cni0 scope link
 ```
 
 ### Bridge cni0 in Tenant1
@@ -380,7 +380,7 @@ root@server06:/home/cumulus# docker exec -it f2c3b88744f3 sh
 / # ip a
 3: eth0@if43: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
     link/ether 5a:b4:0d:7d:66:2b brd ff:ff:ff:ff:ff:ff
-    inet 10.244.5.11/24 scope global eth0
+    inet 10.244.5.4/24 scope global eth0
        valid_lft forever preferred_lft forever
 
 
@@ -404,12 +404,12 @@ PING 10.244.1.1 (10.244.1.1): 56 data bytes
 round-trip min/avg/max = 1.680/6.345/15.447 ms
 
 
-/ # ping 10.244.1.106
-PING 10.244.1.106 (10.244.1.106): 56 data bytes
-64 bytes from 10.244.1.106: seq=0 ttl=62 time=2.061 ms
-64 bytes from 10.244.1.106: seq=1 ttl=62 time=2.035 ms
-64 bytes from 10.244.1.106: seq=2 ttl=62 time=2.442 ms
---- 10.244.1.106 ping statistics ---
+/ # ping 10.244.1.98
+PING 10.244.1.98 (10.244.1.98): 56 data bytes
+64 bytes from 10.244.1.98: seq=0 ttl=62 time=2.061 ms
+64 bytes from 10.244.1.98: seq=1 ttl=62 time=2.035 ms
+64 bytes from 10.244.1.98: seq=2 ttl=62 time=2.442 ms
+--- 10.244.1.98 ping statistics ---
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 2.035/2.179/2.442 ms
 ```
@@ -421,7 +421,7 @@ root@server06:/home/cumulus# docker exec -it f2c3b88744f3 sh
 / # ip a
 3: eth0@if43: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
     link/ether 5a:b4:0d:7d:66:2b brd ff:ff:ff:ff:ff:ff
-    inet 10.244.5.11/24 scope global eth0
+    inet 10.244.5.4/24 scope global eth0
        valid_lft forever preferred_lft forever
 
 
@@ -465,9 +465,9 @@ PING 10.244.1.1 (10.244.1.1): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 
 
-/ # ping 10.244.1.106
-PING 10.244.1.106 (10.244.1.106): 56 data bytes
---- 10.244.1.106 ping statistics ---
+/ # ping 10.244.1.98
+PING 10.244.1.98 (10.244.1.98): 56 data bytes
+--- 10.244.1.98 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
 
 
@@ -475,11 +475,11 @@ PING 10.244.1.106 (10.244.1.106): 56 data bytes
 PING 10.244.5.1 (10.244.5.1): 56 data bytes
 --- 10.244.5.1 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
-/ # ping 10.244.5.11
+/ # ping 10.244.5.4
 
 
-PING 10.244.5.11 (10.244.5.11): 56 data bytes
---- 10.244.5.11 ping statistics ---
+PING 10.244.5.4 (10.244.5.4): 56 data bytes
+--- 10.244.5.4 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
