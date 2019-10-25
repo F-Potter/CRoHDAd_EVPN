@@ -16,12 +16,12 @@ my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.
 
 ## Server04
 ### VRF Tenant2
-`
+```
 root@server04:/home/cumulus# ip route sh vrf tenant2
 10.244.3.0/24 dev cni0 proto kernel scope link src 10.244.3.1 
 10.244.7.0/24 via 10.250.250.18 dev dummysvi404002 proto bgp metric 20 onlink 
 10.244.7.10 via 10.250.250.18 dev dummysvi404002 proto bgp metric 20 onlink 
-`
+```
 
 ### Bridge cni0 in Tenant2
 <cli>
