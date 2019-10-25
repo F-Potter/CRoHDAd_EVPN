@@ -1,4 +1,5 @@
 # Experiment 1
+![image](experiments/images/Experiment1.png)
 
 
 ## Overview
@@ -483,4 +484,4 @@ PING 10.244.5.11 (10.244.5.11): 56 data bytes
 
 ## Traffic flow
 ### Note VXLAN in the packet
-![image](VXLAN_traffic.png)
+![image](experiments/images/VXLAN_traffic.png)
