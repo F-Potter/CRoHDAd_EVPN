@@ -1,7 +1,7 @@
-#Experiment1
+# Experiment1
 
 
-##Overview:##
+## Overview
 <cli>
 root@server01:/home/cumulus# kubectl get pods -o wide
 NAME                              READY   STATUS    RESTARTS   AGE     IP             NODE
@@ -11,8 +11,8 @@ my-deployment3-5ccfdd455f-jnxgw   1/1     Running   0          2d5h    10.244.1.
 my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.11    server06
 </cli>
 
-##Server04:##
-###VRF Tenant2###
+## Server04
+### VRF Tenant2
 <cli>
 root@server04:/home/cumulus# ip route sh vrf tenant2
 10.244.3.0/24 dev cni0 proto kernel scope link src 10.244.3.1 
@@ -20,7 +20,7 @@ root@server04:/home/cumulus# ip route sh vrf tenant2
 10.244.7.10 via 10.250.250.18 dev dummysvi404002 proto bgp metric 20 onlink 
 </cli>
 
-###Bridge cni0 in Tenant2###
+### Bridge cni0 in Tenant2
 <cli>
 root@server04:/home/cumulus# vtysh -c 'sh int cni0'
 Interface cni0 is up, line protocol is up
@@ -37,7 +37,7 @@ Interface cni0 is up, line protocol is up
   Bridge VLAN-aware: no
 </cli>
 
-###IP address of cni0###
+### IP address of cni0
 <cli>
 root@server04:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
@@ -50,7 +50,7 @@ cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 </cli>
 
-###Global routing table###
+### Global routing table
 <cli>
 root@server04:/home/cumulus# ip route
 10.250.250.10 proto bgp metric 20 
@@ -76,7 +76,7 @@ root@server04:/home/cumulus# ip route
 	nexthop via 169.254.0.1 dev eth2 weight 1 onlink 
 </cli>
 
-###Container IP of Container2 on Server4 and connectivity to Container4 on Server8 in VRF Tenant2###
+### Container IP of Container2 on Server4 and connectivity to Container4 on Server8 in VRF Tenant2
 <cli>
 root@server04:/home/cumulus# docker exec -it 129846c9053d sh
 / # ip a
