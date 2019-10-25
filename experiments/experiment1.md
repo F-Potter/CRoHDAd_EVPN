@@ -483,4 +483,4 @@ PING 10.244.5.11 (10.244.5.11): 56 data bytes
 
 ## Traffic flow
 ### Note VXLAN in the packet
-![image](images/VXLAN_traffic.png)
+![image](VXLAN_traffic.png)
