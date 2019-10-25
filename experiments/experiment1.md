@@ -1,5 +1,5 @@
 # Experiment 1: Connectivity and traffic flow
-In the first experiment, the tenants do not share the node but share the network. This experiment was done in order to see if EVPN can be used as Container Network Interface (CNI) to allow for inter-host connectivity. Furthermore, the traffic flow was also analyzed. The Proof of Concept setup of experiment 1 in shown below.
+In the first experiment, the tenants do not share the node but share the network. This experiment was done in order to see if EVPN can be used as Container Network Interface (CNI) to allow for inter-host connectivity. Furthermore, the traffic flow was also analyzed. The Proof of Concept setup of experiment 1 in shown below. In this setup Server2 and Server6 that host Tenant1 were able to communicate and Server4 and Server8 of Tenant2 were able to communicate. No cross connectivity was possible between the containers of different tenants.
 
 ![image](images/Experiment1.png)
 
@@ -16,12 +16,12 @@ my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.
 
 ## Server04
 ### VRF Tenant2
-<cli>
+`
 root@server04:/home/cumulus# ip route sh vrf tenant2
 10.244.3.0/24 dev cni0 proto kernel scope link src 10.244.3.1 
 10.244.7.0/24 via 10.250.250.18 dev dummysvi404002 proto bgp metric 20 onlink 
 10.244.7.10 via 10.250.250.18 dev dummysvi404002 proto bgp metric 20 onlink 
-</cli>
+`
 
 ### Bridge cni0 in Tenant2
 <cli>
