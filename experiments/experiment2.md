@@ -1,5 +1,9 @@
 # Experiment 2: Multi-tenancy and traffic isolation
+In the second experiment, a multi-tenant scenario was created, in which the tenants share the node. This experiment was conduced in order to see whether EVPN with VRFs and a virtual bridge can be used to provide multi-tenancy but maintain traffic isolation. The Proof of Concept setup of experiment 2 is depicted below. 
 
+In this setup Server2 and Server6 that host Tenant1 were able to communicate and Server4 and Server8 of Tenant2 were able to communicate. No cross connectivity was possible between the containers of different tenants.
+
+![image](images/Experiment2.png)
 
 ## Overview
 ```
