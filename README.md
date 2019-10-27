@@ -5,4 +5,4 @@ In this github project the Cumulus Routing on the Host Docker Advertisement daem
 ![image](images/Architecture.png)
 
 
-The experiments and results with EVPN as CNI on a Kubernetes environment can be found in [experiments](../experiments)
+The experiments and results with EVPN as CNI on a Kubernetes environment can be found in [experiments](experiments)
