@@ -1,5 +1,6 @@
+# Experiment 2: Multi-tenancy and traffic isolation
 ## Overview
-<cli>
+```
 root@server01:/home/cumulus# kubectl get pods -o wide 
 NAME                              READY   STATUS    RESTARTS   AGE     IP             NODE
 exp2-c1-vrf1-86c7f797cc-69qlk     1/1     Running   0          58m     10.244.2.2     server03
@@ -11,7 +12,7 @@ exp2-c6-vrf3-d7fc7d455-d7c2c      1/1     Running   0          39m     10.244.4.
 exp2-c7-vrf1-6cc5ddd65-5v6ff      1/1     Running   0          13m     10.244.6.142   server07
 exp2-c8-vrf2-697b5895d5-sfpsf     1/1     Running   0          12m     10.244.6.143   server07
 exp2-c9-vrf3-96dd87fc7-lsdll      1/1     Running   0          11m     10.244.6.144   server07
-</cli>
+```
 
 ## Server03
 ### VRF Tenant1
