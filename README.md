@@ -15,4 +15,4 @@ When all the nodes are joined to the Kubernetes master, the bash [scripts](scrip
 
 ![image](images/Crohdad.png)
 
-After the kubernetes Master and nodes are setup, and CRoHDAd is running. The containers can be deployed. For the containers, the YAML files in [deployments](deployments) were used. The deployments of exp1 for experiment1 and the deployments of exp2 for experiment2. However, one can choose to deploy its own YAML files for the containers.
+After the kubernetes Master and nodes are setup, and CRoHDAd is running. The containers can be deployed. For the containers, the YAML files in [deployments](deployments) were used. The deployments of exp1 were used for experiment1 and the deployments of exp2 were used for experiment2. However, one can choose to deploy its own YAML files for the containers.
