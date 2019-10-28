@@ -10,8 +10,8 @@ root@server01:/home/cumulus# kubectl get pods -o wide
 NAME                              READY   STATUS    RESTARTS   AGE     IP             NODE
 my-deployment1-7977bf45d4-gtsth   1/1     Running   0          2d9h    10.244.3.12    server04
 my-deployment2-b58cb668d-w4kkz    1/1     Running   0          2d9h    10.244.7.10    server08
-my-deployment3-5ccfdd455f-jnxgw   1/1     Running   0          2d5h    10.244.1.98   server02
-my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.4    server06
+my-deployment3-5ccfdd455f-jnxgw   1/1     Running   0          2d5h    10.244.1.98    server02
+my-deployment4-6cb9585895-jcbs7   1/1     Running   0          2d5h    10.244.5.4     server06
 ```
 
 ## Server04
