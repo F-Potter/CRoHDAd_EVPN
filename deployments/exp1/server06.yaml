@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment4
+spec:
+  selector:
+    matchLabels:
+      app: metrics
+      department: sales
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: metrics
+        department: sales
+        vrf: tenant2
+        table: !!integer 1001
+    spec:
+      containers:
+      - name: hello
+        image: "gcr.io/google-samples/hello-app:2.0"
+      nodeSelector:
+        kubernetes.io/hostname: server06
