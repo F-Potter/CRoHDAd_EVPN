@@ -3,7 +3,7 @@ In the first experiment, the tenants do not share the node but share the network
 
 ![image](images/Experiment1.png)
 
-
+# Inter-host connectivity
 ## Overview
 ```
 root@server01:/home/cumulus# kubectl get pods -o wide
@@ -483,6 +483,8 @@ PING 10.244.5.4 (10.244.5.4): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-## Traffic flow
+# Traffic flow
 ### Note VXLAN in the packet
 ![image](images/VXLAN_traffic.png)
+
+![image](images/Packet_flow.png)
