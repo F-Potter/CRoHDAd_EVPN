@@ -11,8 +11,9 @@ In order to recreate the experiments or create a similar environment, one should
 
 
 
-When all the nodes are joined to the Kubernetes master, the bash [scripts](scripts) (kubernetes-startup-master and kubernetes-startup-node) should be run. These scripts create 3 bridges and configures them based on the default /24 per node allocation from Kubernetes. After the bridges are created, [CRoHDAd](crohdad) was startup. CRoHDAd is a privileged container that checks for Kubernetes events 
+When all the nodes are joined to the Kubernetes master, the bash [scripts](scripts) (kubernetes-startup-master and kubernetes-startup-node) should be run. These scripts create 3 bridges and configures them based on the default /24 per node allocation from Kubernetes. After the bridges are created, [CRoHDAd](crohdad) was startup. CRoHDAd is a privileged container that checks for Kubernetes/Docker events. When the Kubernetes Master schedules a container to the Kubelet agent on the node, the Kubelet agent creates the container with Docker. The creation or deletion of a container triggers an event, which the Cumulus Routing on the Host Docker Advertisement daemon (CRoHDAd) listens to. The original CRoHDAd checks for the IP address of the container and adds or deletes the host route to a default routing table. We adjusted the CRoHDAd, such that based on the labels provided in the Kubernetes deployment of the container, CRoHDAd adds or deletes the host route to the corresponding VRF table. When the host routes are added to the tenant VRF, they get imported to FRR and advertised by BGP-EVPN. The process is shown in the figure below.
 
+![image](images/crohdad.png)
 
 
 the containers can be deployed. For the containers, the YAML files in [deployments](deployments) were used. The deployments of exp1 for experiment1 and the deployments of exp2 for experiment2. However, one can choose to deploy its own YAML files for the containers.
