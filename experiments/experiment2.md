@@ -918,7 +918,8 @@ PING 10.244.4.4 (10.244.4.4): 56 data bytes
 round-trip min/avg/max = 1.213/1.391/1.652 ms
 ```
 
-## Cross connectivity
+## Cross connectivity and traffic isolation
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container1 on Server3 in VRF Tenant1 (not possible)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -934,6 +935,7 @@ PING 10.244.2.2 (10.244.2.2): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container2 on Server3 in VRF Tenant2 (not possible)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -949,6 +951,7 @@ PING 10.244.2.3 (10.244.2.3): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container4 on Server5 in VRF Tenant1 (not possible)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -964,7 +967,8 @@ PING 10.244.4.2 (10.244.4.2): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-<cli>
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container5 on Server5 in VRF Tenant2 (not possible)
+```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
 3: eth0@if47: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -977,9 +981,10 @@ root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 PING 10.244.4.3 (10.244.4.3): 56 data bytes
 --- 10.244.4.3 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
-</cli>
+```
 
-<cli>
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container7 on Server7 in VRF Tenant1 (not possible)
+```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
 3: eth0@if47: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -992,9 +997,10 @@ root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 PING 10.244.6.142 (10.244.6.142): 56 data bytes
 --- 10.244.6.142 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
-</cli>
+```
 
-<cli>
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container8 on Server7 in VRF Tenant2 (not possible)
+```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
 3: eth0@if47: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1450 qdisc noqueue state UP
@@ -1007,4 +1013,4 @@ root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 PING 10.244.6.143 (10.244.6.143): 56 data bytes
 --- 10.244.6.143 ping statistics ---
 3 packets transmitted, 0 packets received, 100% packet loss
-</cli>
+```
