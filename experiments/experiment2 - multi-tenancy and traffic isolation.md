@@ -918,8 +918,9 @@ PING 10.244.4.4 (10.244.4.4): 56 data bytes
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 1.213/1.391/1.652 ms
 ```
-# Traffic isolation
-## Cross connectivity and traffic isolation
+# Cross connectivity and traffic isolation
+In this part of the experiment it was shown that no cross connectivity was possible, and in combination with a virtual bridge the traffic between containers of different tenants was isolated. Meaning another tenant could not reach other tenants its containers or sniff L2 traffic on the node.
+
 ### Container IP of Container9 on Server7 in VRF Tenant3 to Container1 on Server3 in VRF Tenant1 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
