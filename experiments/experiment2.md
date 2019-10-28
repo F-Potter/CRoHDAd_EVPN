@@ -3,6 +3,7 @@ In the second experiment, a multi-tenant scenario was created, in which the tena
 
 ![image](images/Experiment.png)
 
+# Multi-tenancy
 ## Overview
 ```
 root@server01:/home/cumulus# kubectl get pods -o wide 
@@ -917,7 +918,7 @@ PING 10.244.4.4 (10.244.4.4): 56 data bytes
 3 packets transmitted, 3 packets received, 0% packet loss
 round-trip min/avg/max = 1.213/1.391/1.652 ms
 ```
-
+# Traffic isolation
 ## Cross connectivity and traffic isolation
 ### Container IP of Container9 on Server7 in VRF Tenant3 to Container1 on Server3 in VRF Tenant1 (not possible as intended)
 ```
