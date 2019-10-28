@@ -919,7 +919,7 @@ round-trip min/avg/max = 1.213/1.391/1.652 ms
 ```
 
 ## Cross connectivity and traffic isolation
-### Container IP of Container9 on Server7 in VRF Tenant3 to Container1 on Server3 in VRF Tenant1 (not possible)
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container1 on Server3 in VRF Tenant1 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -935,7 +935,7 @@ PING 10.244.2.2 (10.244.2.2): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-### Container IP of Container9 on Server7 in VRF Tenant3 to Container2 on Server3 in VRF Tenant2 (not possible)
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container2 on Server3 in VRF Tenant2 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -951,7 +951,7 @@ PING 10.244.2.3 (10.244.2.3): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-### Container IP of Container9 on Server7 in VRF Tenant3 to Container4 on Server5 in VRF Tenant1 (not possible)
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container4 on Server5 in VRF Tenant1 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -967,7 +967,7 @@ PING 10.244.4.2 (10.244.4.2): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-### Container IP of Container9 on Server7 in VRF Tenant3 to Container5 on Server5 in VRF Tenant2 (not possible)
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container5 on Server5 in VRF Tenant2 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -983,7 +983,7 @@ PING 10.244.4.3 (10.244.4.3): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-### Container IP of Container9 on Server7 in VRF Tenant3 to Container7 on Server7 in VRF Tenant1 (not possible)
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container7 on Server7 in VRF Tenant1 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
@@ -999,7 +999,7 @@ PING 10.244.6.142 (10.244.6.142): 56 data bytes
 3 packets transmitted, 0 packets received, 100% packet loss
 ```
 
-### Container IP of Container9 on Server7 in VRF Tenant3 to Container8 on Server7 in VRF Tenant2 (not possible)
+### Container IP of Container9 on Server7 in VRF Tenant3 to Container8 on Server7 in VRF Tenant2 (not possible as intended)
 ```
 root@server07:/home/cumulus# docker exec -it ee9e54605d60 sh
 / # ip a
