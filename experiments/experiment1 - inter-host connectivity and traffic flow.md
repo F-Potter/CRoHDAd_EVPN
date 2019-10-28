@@ -484,10 +484,10 @@ PING 10.244.5.4 (10.244.5.4): 56 data bytes
 ```
 
 # Traffic flow
-In the traffic flow, we looked into Ethernet Frame and VXLAN header from Container8 on Server4 towards Container4 on Server2. An example of the VXLAN header can be seen in the figure below.
+In the traffic flow, we looked into Ethernet Frame and VXLAN header from Container4 on Server8 towards Container2 on Server4. An example of the VXLAN header can be seen in the figure below.
 
 ![image](images/VXLAN_traffic.png)
 
-The full packet flow is depicted below. In red are the changes to the Ethernet Frame when it traverses the network. Note that only the MAC address changes (either in the Ethernet Frame or in the VXLAN header), meaning the Containers think it is directly connected to the destined container.
+The full packet flow is depicted below. In red are the changes to the packet when it traverses the network. Note that only the MAC address changes (either in the Ethernet Frame or in the VXLAN header), meaning the containers think it is directly connected to the destined container.
 
 ![image](images/Packet_Flow.png)
