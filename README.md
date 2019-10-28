@@ -9,4 +9,10 @@ The experiments and results with EVPN as CNI on a Kubernetes environment can be 
 
 In order to recreate the experiments or create a similar environment, one should first install the Kubernetes Master and nodes as is for example done in [How to install Kubernetes on Ubuntu 18.04 Bionic Beaver Linux](https://linuxconfig.org/how-to-install-kubernetes-on-ubuntu-18-04-bionic-beaver-linux). The dependencies could also be installed from the [kube_install script](scripts/kube_install.sh).
 
-When all the nodes are joined to the Kubernetes master, the bash [scripts](scripts) (kubernetes-startup-master and kubernetes-startup-node) should be run. These scripts create 3 bridges and configures them based on the default /24 per node allocation from Kubernetes. After the bridges are created, the containers can be deployed. For the containers, the YAML files in [deployments]() were used. However, one can choose to deploy its own YAML files for the containers.
+
+
+When all the nodes are joined to the Kubernetes master, the bash [scripts](scripts) (kubernetes-startup-master and kubernetes-startup-node) should be run. These scripts create 3 bridges and configures them based on the default /24 per node allocation from Kubernetes. After the bridges are created, [CRoHDAd](crohdad) was startup. CRoHDAd is a privileged container that checks for Kubernetes events 
+
+
+
+the containers can be deployed. For the containers, the YAML files in [deployments](deployments) were used. The deployments of exp1 for experiment1 and the deployments of exp2 for experiment2. However, one can choose to deploy its own YAML files for the containers.
