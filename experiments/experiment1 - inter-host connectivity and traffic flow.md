@@ -23,7 +23,7 @@ root@server04:/home/cumulus# ip route sh vrf tenant2
 10.244.7.10 via 10.250.250.18 dev dummysvi404002 proto bgp metric 20 onlink 
 ```
 
-### Bridge cni0 in Tenant2
+### Bridge2 (cni0) in Tenant2
 ```
 root@server04:/home/cumulus# vtysh -c 'sh int cni0'
 Interface cni0 is up, line protocol is up
@@ -40,7 +40,7 @@ Interface cni0 is up, line protocol is up
   Bridge VLAN-aware: no
 ```
 
-### IP address of cni0
+### IP address of bridge2 (cni0)
 ```
 root@server04:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
@@ -125,7 +125,7 @@ root@server08:/home/cumulus# ip route sh vrf tenant2
 10.244.7.10 dev cni0 scope link 
 ```
 
-### Bridge cni0 in Tenant2
+### Bridge4 (cni0) in Tenant2
 ```
 root@server08:/home/cumulus# address-family ipv4 unicast
 address-family: command not found
@@ -144,7 +144,7 @@ Interface cni0 is up, line protocol is up
   Bridge VLAN-aware: no
 ```
 
-### IP address of cni0
+### IP address of bridge4 (cni0)
 ```
 root@server08:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
@@ -213,7 +213,7 @@ root@server02:/home/cumulus# ip route sh vrf tenant1
 10.244.5.4 via 10.250.250.16 dev dummysvi404001 proto bgp metric 20 onlink
 ```
 
-### Bridge cni0 in Tenant1
+### Bridge1 (cni0) in Tenant1
 ```
 root@server02:/home/cumulus# vtysh -c 'show int cni0'
 Interface cni0 is up, line protocol is up
@@ -230,7 +230,7 @@ Interface cni0 is up, line protocol is up
   Bridge VLAN-aware: no
 ```
 
-### IP address of cni0
+### IP address of bridge1 (cni0)
 ```
 root@server02:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
@@ -318,7 +318,7 @@ root@server06:/home/cumulus# ip route sh vrf tenant1
 10.244.5.4 dev cni0 scope link
 ```
 
-### Bridge cni0 in Tenant1
+### Bridge3 (cni0) in Tenant1
 ```
 root@server06:/home/cumulus# vtysh -c 'show int cni0'
 Interface cni0 is up, line protocol is up
@@ -335,7 +335,7 @@ Interface cni0 is up, line protocol is up
   Bridge VLAN-aware: no
 ```
 
-### IP address of cni0
+### IP address of bridge3 (cni0)
 ```
 root@server06:/home/cumulus# ifconfig cni0
 cni0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
