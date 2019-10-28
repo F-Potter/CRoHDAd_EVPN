@@ -488,6 +488,6 @@ In the traffic flow, we looked into Ethernet Frame and VXLAN header from Contain
 
 ![image](images/VXLAN_traffic.png)
 
-The full packet flow is depicted below. In red are the changes to the packet when it traverses the network. Note that only the MAC address changes (either in the Ethernet Frame or in the VXLAN header), meaning the containers think it is directly connected to the destined container.
+The full packet flow is depicted below. In <div class="text-red"> red </div> are the changes to the packet when it traverses the network. Note that only the MAC address changes (either in the Ethernet Frame or in the VXLAN header), meaning the containers think it is directly connected to the destined container.
 
 ![image](images/Packet_Flow.png)
