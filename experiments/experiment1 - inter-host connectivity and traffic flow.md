@@ -1,7 +1,7 @@
 # Experiment 1: Connectivity and traffic flow
 In the first experiment, the tenants do not share the node but share the network. This experiment was done in order to see if EVPN can be used as Container Network Interface (CNI) to allow for inter-host connectivity. Furthermore, the traffic flow was also analyzed. The Proof of Concept setup of experiment 1 in shown below. In this setup Server2 and Server6 that host Tenant1 were able to communicate and Server4 and Server8 of Tenant2 were able to communicate. No cross connectivity was possible between the containers of different tenants.
 
-![image](images/Experiment1.png)
+![image](images/Experiment.png)
 
 # Inter-host connectivity
 ## Overview
